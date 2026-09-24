@@ -1,0 +1,17 @@
+[Unit]
+Description=Auto Stars Bot (24/7 tunnel + docker)
+After=network-online.target docker.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/stars-bot
+ExecStart=/bin/bash -c 'cd /root/stars-bot && bash deploy/run_bot.sh'
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
