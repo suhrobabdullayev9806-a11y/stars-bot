@@ -171,6 +171,7 @@ def make_server(app: App) -> FastAPI:
                 "percent": await app.settings.get_percent(),
                 "active": await app.settings.bot_active(),
                 "card": await app.settings.payment_card(),
+                "referral_bonus": await app.settings.get_referral_bonus(),
                 "api_enabled": await app.api.enabled()}
 
     @server.post("/api/settings/prices")
@@ -182,6 +183,20 @@ def make_server(app: App) -> FastAPI:
         if isinstance(prices, dict):
             await app.admin.set_prices({int(k): float(v) for k, v in prices.items()})
         return {"ok": True}
+
+    @server.post("/api/settings/referral_bonus")
+    async def api_set_referral_bonus(request: Request):
+        if not await admin_user(request):
+            return JSONResponse({"ok": False}, status_code=401)
+        body = await request.json()
+        try:
+            val = float(body.get("amount", 0))
+        except (TypeError, ValueError):
+            return {"ok": False, "error": "bad_amount"}
+        if val < 0:
+            return {"ok": False, "error": "bad_amount"}
+        await app.settings.set_referral_bonus(val)
+        return {"ok": True, "referral_bonus": val}
 
     # ---------------------------------------------------------------
     # MINI-APP (buy) — oddiy foydalanuvchi auth, admin shart emas

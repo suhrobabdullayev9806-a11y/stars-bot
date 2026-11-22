@@ -193,6 +193,7 @@ async def post_confirm(cb: CallbackQuery, app: App, state: FSMContext) -> None:
         app,
         admin_orders_kb(lang, order_id),
     ))
+    await app.payments.try_referral_bonus(user_id)
     await edit_or_send(
         cb,
         t(lang, "post_paid_ok", order_id=order_id, amount=amount,

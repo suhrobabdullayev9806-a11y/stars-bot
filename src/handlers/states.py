@@ -65,3 +65,4 @@ class AdminFlow(StatesGroup):
     wait_gift_narxi = State()     # gift katalogi: narxi (so'm)
     wait_gift_soni = State()      # gift katalogi: stars soni
     wait_gift_delete = State()    # gift katalogi: o'chiriladigan ID
+    wait_ref_bonus = State()      # referal bonus narxi (so'm)

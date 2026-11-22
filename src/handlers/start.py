@@ -5,14 +5,14 @@
 from __future__ import annotations
 
 from aiogram import F, Router
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import CallbackQuery, Message
 
 from src.app import App
 from src.assets import menu_banner, send_smart_photo
-from src.handlers._helpers import edit_or_send, is_subscribed
+from src.handlers._helpers import edit_or_send, is_subscribed_all, send_subscribe_prompt
 from src.i18n import t
-from src.keyboards import check_subscribe_kb, language_kb, main_menu_kb
+from src.keyboards import language_kb, main_menu_kb
 
 router = Router(name="start")
 
@@ -47,8 +47,8 @@ async def render_main_menu(target, app: App, lang: str, user: dict) -> None:
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, app: App) -> None:
-    """Botga 'Start' berilganda ishlaydi."""
+async def cmd_start(message: Message, app: App, command: CommandObject) -> None:
+    """Botga 'Start' berilganda ishlaydi. Referal havola ham qabul qiladi."""
     bot_active = await app.settings.bot_active()
 
     user, created = await app.users.get_or_create(
@@ -58,6 +58,14 @@ async def cmd_start(message: Message, app: App) -> None:
         "uz",
     )
 
+    # Referal bog'lash: /start?start=ref<user_id>
+    if created:
+        args = (command.args or "").strip()
+        if args.lower().startswith("ref") and args[3:].isdigit():
+            ref_uid = int(args[3:])
+            if ref_uid != message.from_user.id:
+                await app.users.set_referrer(message.from_user.id, ref_uid, args)
+
     # Bot o'chirilgan bo'lsa (admin tomonidan) — admin o'zi kirsa ko'radi
     if not bot_active and not app.cfg.is_admin(message.from_user.id):
         await message.answer(t(user.get("language", "uz"), "start_bot_inactive"))
@@ -65,12 +73,13 @@ async def cmd_start(message: Message, app: App) -> None:
 
     lang = user.get("language") or "uz"
 
-    # Obuna tekshiruvi (agar kanal sozlangan bo'lsa)
-    channel, channel_id = await app.settings.get_channel()
-    if channel and not await is_subscribed(message.bot, message.from_user.id, channel, channel_id):
-        await message.answer(
-            t(lang, "start_not_subscribed", channel=channel),
-            reply_markup=check_subscribe_kb(lang),
+    # Obuna tekshiruvi (agar kanal(lar) sozlangan bo'lsa)
+    channels = await app.settings.get_channels()
+    if channels and not await is_subscribed_all(
+        message.bot, message.from_user.id, channels
+    ):
+        await send_subscribe_prompt(
+            message.bot, app, message.from_user.id, lang, channels
         )
         return
 
@@ -79,11 +88,13 @@ async def cmd_start(message: Message, app: App) -> None:
 
 @router.callback_query(F.data == "check:sub")
 async def check_subscription(cb: CallbackQuery, app: App) -> None:
-    """Obunani tekshirish tugmasi."""
+    """Obunani tekshirish tugmasi (keshni yangilab)."""
     lang = (await app.users.get(cb.from_user.id) or {}).get("language", "uz")
-    channel, channel_id = await app.settings.get_channel()
-    if channel and not await is_subscribed(cb.bot, cb.from_user.id, channel, channel_id):
-        await cb.answer(t(lang, "start_not_subscribed", channel=channel), show_alert=True)
+    channels = await app.settings.get_channels()
+    if channels and not await is_subscribed_all(
+        cb.bot, cb.from_user.id, channels, force=True
+    ):
+        await cb.answer(t(lang, "subscribe_alert"), show_alert=True)
         return
     user = await app.users.get(cb.from_user.id) or {}
     await app.users.set_subscribed(cb.from_user.id, True)

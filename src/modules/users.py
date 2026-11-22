@@ -13,6 +13,8 @@ class UsersModule:
 
     def __init__(self, db: Database):
         self.db = db
+        # Referal bonus miqdorini o'qish uchun App tomonidan o'rnatiladi
+        self.settings = None
 
     async def get(self, user_id: int) -> dict | None:
         return await self.db.fetch_one("SELECT * FROM users WHERE id = ?", (user_id,))
@@ -154,3 +156,109 @@ class UsersModule:
     async def count(self) -> int:
         row = await self.db.fetch_one("SELECT COUNT(*) AS c FROM users")
         return int((row or {}).get("c", 0))
+
+    # ===================================================================
+    # REFERRAL TIZIMI
+    # ===================================================================
+
+    async def set_referrer(self, user_id: int, referrer_id: int, code: str) -> tuple[bool, str]:
+        """Yangi kelgan foydalanuvchini referrer'ga bog'laydi.
+
+        Qoidalar:
+          - o'ziga o'zi bog'lanmaydi
+          - allaqachon bog'langan bo'lsa takror lamaydi
+          - faqat botdan foydalangan (mavjud) foydalanuvchiga bog'lash mumkin
+        Qaytaradi: (success, reason)  reason: 'self'|'exists'|'not_found'|'ok'
+        """
+        if referrer_id == user_id:
+            return False, "self"
+        user = await self.get(user_id)
+        if not user:
+            return False, "not_found"
+        if user.get("referrer_id"):
+            return False, "exists"
+        # Referrer botda mavjud bo'lishi kerak
+        referrer = await self.get(referrer_id)
+        if not referrer:
+            return False, "not_found"
+        await self.db.execute(
+            "UPDATE users SET referrer_id = ?, referrer_code = ? WHERE id = ?",
+            (referrer_id, (code or "")[:40], user_id),
+        )
+        return True, "ok"
+
+    async def has_referrer(self, user_id: int) -> bool:
+        """Foydalanuvchi referal orqali kelganmi."""
+        user = await self.get(user_id)
+        return bool(user and user.get("referrer_id"))
+
+    async def referrer_of(self, user_id: int) -> int | None:
+        """Kimning referrali ekanini qaytaradi."""
+        user = await self.get(user_id)
+        return user.get("referrer_id") if user else None
+
+    async def referral_count(self, referrer_id: int) -> int:
+        """Berilgan foydalanuvchining nechta referali kelganini sanaydi."""
+        row = await self.db.fetch_one(
+            "SELECT COUNT(*) AS c FROM users WHERE referrer_id = ?", (referrer_id,)
+        )
+        return int((row or {}).get("c", 0))
+
+    async def referral_list(self, referrer_id: int, limit: int = 10) -> list[dict]:
+        """Referallar ro'yxati (oxirgi kelganlar first)."""
+        return await self.db.fetch_all(
+            "SELECT id, username, first_name, language, created_at, referral_sum "
+            "FROM users WHERE referrer_id = ? ORDER BY id DESC LIMIT ?",
+            (referrer_id, limit),
+        )
+
+    async def referral_sum(self, user_id: int) -> float:
+        """Referral orqali to'plangan bonus (so'm)."""
+        user = await self.get(user_id)
+        return float(user.get("referral_sum", 0)) if user else 0.0
+
+    async def add_referral_sum(self, user_id: int, amount: float) -> float:
+        """Referral bonusni (so'm) qo'shadi."""
+        amount = round(float(amount), 2)
+        await self.db.execute(
+            "UPDATE users SET referral_sum = referral_sum + ? WHERE id = ?",
+            (amount, user_id),
+        )
+        return await self.referral_sum(user_id)
+
+    async def reward_referrer(self, user_id: int) -> tuple[int, float] | None:
+        """Referrerga birinchi xariddan keyin bonus yozadi (bitta marta).
+
+        Foydalanuvchi qaysidir referrer orqali kelgan bo'lsa va uning
+        'referral_paid' bayrog'i hali 0 bo'lsa:
+          - referrerning so'm hisobiga (balance_sum) bonus qo'shiladi
+          - referrerning jami referal daromadiga (referral_sum) qo'shiladi
+          - transaksiya tarixiga yoziladi
+        Qaytaradi: (referrer_id, amount) | None
+        """
+        user = await self.get(user_id)
+        if not user:
+            return None
+        referrer_id = user.get("referrer_id")
+        if not referrer_id:
+            return None
+        if int(user.get("referral_paid", 0) or 0):
+            return None
+        # Bir marta to'langan deb belgilash (ikki marta yozilmasin)
+        await self.db.execute(
+            "UPDATE users SET referral_paid = 1 WHERE id = ?", (user_id,)
+        )
+        amount = 0.0
+        if self.settings is not None:
+            amount = round(float(await self.settings.get_referral_bonus()), 2)
+        if amount <= 0:
+            return None
+        await self.db.execute(
+            "UPDATE users SET balance_sum = balance_sum + ?, "
+            " referral_sum = referral_sum + ? WHERE id = ?",
+            (amount, amount, referrer_id),
+        )
+        await self._log_tx(
+            referrer_id, None, amount, "credit", f"referral bonus user#{user_id}"
+        )
+        return referrer_id, amount

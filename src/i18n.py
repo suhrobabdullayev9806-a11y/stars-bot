@@ -13,11 +13,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "start": "🚀 <b>{first}</b> xush kelibsiz!\n\n"
                  "ℹ️ Bu bot orqali <b>Telegram Stars</b> sotib oling yoki o'z postlaringizga stars yo'llang.\n\n"
                  "👇 Quyidagi bo'limlardan birini tanlang:",
-        "start_not_subscribed": "⚠️ <b>Botdan foydalanish uchun kanalimizga obuna bo'lishingiz kerak!</b>\n\n"
-                                "Kanal: @{channel}\n\n"
-                                "Obuna bo'lgach \"✅ Tekshirish\" tugmasini bosing.",
+        "start_not_subscribed": "⚠️ <b>Botdan foydalanish uchun kanal(lar)imizga obuna bo'lishingiz kerak!</b>\n\n{channels}\n\nObuna bo'lgach \"✅ Tekshirish\" tugmasini bosing.",
         "start_bot_inactive": "⛔️ Bot vaqtincha ishlamayapti. Iltimos keyinroq urinib ko'ring.",
         "check_subscribe": "✅ Tekshirish",
+        "subscribe_alert": "⚠️ <b>Botdan foydalanish uchun avval kanal(lar)ga obuna bo'ling!</b>",
         "back": "◀️ Orqaga",
         "menu_buy": "🛒 Stars sotib olish",
         "menu_wallet": "👛 Balans",
@@ -28,6 +27,25 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "menu_pricing": "💲 Narxlar",
         "menu_help": "❓ Yordam / FAQ",
         "menu_personal": "👤 Shaxsiy kabinet",
+        "menu_referral": "👥 Referal tizimi",
+        "menu_referral": "👥 Referal",
+
+        # --- Referal dasturi ---
+        "referral_info": "👥 <b>Referal dasturi</b>\n\n"
+                         "Har bir taklif qilgan do'stingiz botga kirib, "
+                         "<b>birinchi xarid</b> qilsa, hisobingizga "
+                         "<b>{bonus} so'm</b> bonus tushadi!\n\n"
+                         "🔗 <b>Sizning havolangiz:</b>\n<code>{link}</code>\n\n"
+                         "Do'stingiz shu havola orqali botga kirsin. "
+                         "Har bir foydalanuvchi uchun bonus <b>faqat bir marta</b> to'lanadi.\n\n"
+                         "📊 Taklif qilinganlar: <b>{count}</b>\n"
+                         "💵 To'plagan bonus: <b>{earned} so'm</b>\n\n"
+                         "🕓 Oxirgi referallar:\n{refs}",
+        "referral_list_empty": "Hozircha referallar yo'q. Havolangizni do'stlaringizga ulashing!",
+        "referral_bonus_received": "🎉 <b>Tabriklaymiz!</b>\n\n"
+                                   "Taklif qilgan foydalanuvchingiz birinchi xaridni amalga oshirdi.\n"
+                                   "Hisobingizga <b>{amount} so'm</b> bonus qo'shildi 👥\n\n"
+                                   "Balansingizni ko'rish uchun 👛 bo'limiga o'ting.",
 
         # --- Narxlar ---
         "pricing_text": "📈 <b>Stars narxlari</b>\n\n{prices}\n\n"
@@ -249,10 +267,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "start": "🚀 Welcome, <b>{first}</b>!\n\n"
                  "ℹ️ Buy <b>Telegram Stars</b> or send stars to your posts with this bot.\n\n"
                  "👇 Choose a section below:",
-        "start_not_subscribed": "⚠️ <b>You must join our channel to use the bot!</b>\n\n"
-                                "Channel: @{channel}\n\nAfter subscribing press \"✅ Check\".",
+        "start_not_subscribed": "⚠️ <b>You must join our channel(s) to use the bot!</b>\n\n{channels}\n\nAfter subscribing press \"✅ Check\".",
         "start_bot_inactive": "⛔️ Bot temporarily unavailable. Try later.",
         "check_subscribe": "✅ Check",
+        "subscribe_alert": "⚠️ <b>You must join our channel(s) first to use the bot!</b>",
         "back": "◀️ Back",
         "menu_buy": "🛒 Buy Stars",
         "menu_wallet": "👛 Balance",
@@ -263,6 +281,24 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "menu_pricing": "💲 Pricing",
         "menu_help": "❓ Help / FAQ",
         "menu_personal": "👤 Account",
+        "menu_referral": "👥 Referral",
+
+        # --- Referral program ---
+        "referral_info": "👥 <b>Referral program</b>\n\n"
+                         "When a friend you invited joins the bot and makes "
+                         "their <b>first purchase</b>, you get "
+                         "<b>{bonus} UZS</b>!\n\n"
+                         "🔗 <b>Your link:</b>\n<code>{link}</code>\n\n"
+                         "Share this link with friends. The bonus is paid "
+                         "<b>only once</b> per referred user.\n\n"
+                         "📊 Referrals: <b>{count}</b>\n"
+                         "💵 Bonus earned: <b>{earned} UZS</b>\n\n"
+                         "🕓 Latest referrals:\n{refs}",
+        "referral_list_empty": "No referrals yet. Share your link with friends!",
+        "referral_bonus_received": "🎉 <b>Congratulations!</b>\n\n"
+                                   "A user you referred made their first purchase.\n"
+                                   "<b>{amount} UZS</b> bonus was added to your balance 👥\n\n"
+                                   "Check it in the 👛 Balance section.",
         "pricing_text": "📈 <b>Stars prices</b>\n\n{prices}\n\n"
                         "💰 Payment: card or online API\n⚡️ Instant delivery",
         "buy_choose": "🛒 <b>Choose a package:</b>\n\n{prices}\n\n"
@@ -422,10 +458,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "start": "🚀 Добро пожаловать, <b>{first}</b>!\n\n"
                  "ℹ️ Покупайте <b>Telegram Stars</b> или отправляйте звёзды на свои посты.\n\n"
                  "👇 Выберите раздел:",
-        "start_not_subscribed": "⚠️ <b>Для использования бота нужно подписаться на канал!</b>\n\n"
-                                "Канал: @{channel}\n\nПосле подписки нажмите «✅ Проверить».",
+        "start_not_subscribed": "⚠️ <b>Для использования бота нужно подписаться на наш(и) канал(ы)!</b>\n\n{channels}\n\nПосле подписки нажмите «✅ Проверить».",
         "start_bot_inactive": "⛔️ Бот временно недоступен. Попробуйте позже.",
         "check_subscribe": "✅ Проверить",
+        "subscribe_alert": "⚠️ <b>Для использования бота сначала подпишитесь на канал(ы)!</b>",
         "back": "◀️ Назад",
         "menu_buy": "🛒 Купить звёзды",
         "menu_wallet": "👛 Баланс",
@@ -436,6 +472,24 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "menu_pricing": "💲 Цены",
         "menu_help": "❓ Помощь / FAQ",
         "menu_personal": "👤 Кабинет",
+        "menu_referral": "👥 Реферальная",
+
+        # --- Реферальная программа ---
+        "referral_info": "👥 <b>Реферальная программа</b>\n\n"
+                         "Когда друг, которого вы пригласили, зайдёт в бота "
+                         "и совершит <b>первую покупку</b>, вам начислится "
+                         "<b>{bonus} сум</b>!\n\n"
+                         "🔗 <b>Ваша ссылка:</b>\n<code>{link}</code>\n\n"
+                         "Отправляйте её друзьям. Бонус выплачивается "
+                         "<b>только один раз</b> за каждого приглашённого.\n\n"
+                         "📊 Приглашено: <b>{count}</b>\n"
+                         "💵 Получено бонусов: <b>{earned} сум</b>\n\n"
+                         "🕓 Последние рефералы:\n{refs}",
+        "referral_list_empty": "Пока рефералов нет. Поделитесь своей ссылкой с друзьями!",
+        "referral_bonus_received": "🎉 <b>Поздравляем!</b>\n\n"
+                                   "Приглашённый вами пользователь совершил первую покупку.\n"
+                                   "На ваш баланс начислено <b>{amount} сум</b> 👥\n\n"
+                                   "Посмотреть можно в разделе 👛 Баланс.",
         "pricing_text": "📈 <b>Цены на звёзды</b>\n\n{prices}\n\n"
                         "💰 Оплата: карта или онлайн API\n⚡️ Мгновенная доставка",
         "buy_choose": "🛒 <b>Выберите пакет:</b>\n\n{prices}\n\n"

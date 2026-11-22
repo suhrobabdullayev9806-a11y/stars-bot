@@ -27,6 +27,8 @@ if sys.platform.startswith("win") and sys.version_info < (3, 14):
 from src.app import App  # noqa: E402
 from src.config import load_settings  # noqa: E402
 from src.handlers import register_handlers  # noqa: E402
+from src.i18n import t  # noqa: E402
+from src.middleware import SubscriptionMiddleware  # noqa: E402
 from src.singleton import SingleInstance  # noqa: E402
 
 logging.basicConfig(
@@ -83,9 +85,27 @@ async def main() -> None:
     )
     dp = Dispatcher()
 
+    # Majburiy obuna (global): har bir xabar/callback tekshiriladi
+    dp.message.outer_middleware(SubscriptionMiddleware())
+    dp.callback_query.outer_middleware(SubscriptionMiddleware())
+
     # App konteynerni handlerlarga ulash
     dp["app"] = app
     app.bot = bot
+
+    # Referal bonus hisobga tushganda referrerga xabar (payments.try_referral_bonus chiqaradi)
+    async def _referral_notify(referrer_id: int, amount: float, user_id: int) -> None:
+        try:
+            lang = (await app.users.get(referrer_id) or {}).get("language", "uz")
+            await bot.send_message(
+                referrer_id,
+                t(lang, "referral_bonus_received", amount=f"{amount:,.0f}"),
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
+    app.payments.referral_notify = _referral_notify
+
     register_handlers(dp)
 
     await start_webapp(app)

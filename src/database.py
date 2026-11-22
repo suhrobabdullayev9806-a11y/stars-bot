@@ -22,6 +22,10 @@ CREATE TABLE IF NOT EXISTS users (
     language      TEXT    DEFAULT 'uz',
     balance_stars REAL    DEFAULT 0,
     balance_sum   REAL    DEFAULT 0,   -- so'mdagi hisob (naqd pul hamyon)
+    referrer_id   INTEGER DEFAULT NULL, -- kimni taklifi (referral) bilan kelgan
+    referral_code TEXT    DEFAULT '',  -- referrer kodi (start?start=REFLARI)
+    referral_sum  REAL    DEFAULT 0,   -- referral orqali to'plangan bonus (so'm)
+    referral_paid INTEGER DEFAULT 0,   -- referrer bonus bir marta to'langani (1/0)
     is_vip        INTEGER DEFAULT 0,
     subscribed    INTEGER DEFAULT 0,
     created_at    TEXT
@@ -129,6 +133,29 @@ class Database:
             await self._conn.execute(
                 "ALTER TABLE users ADD COLUMN balance_sum REAL DEFAULT 0"
             )
+        # Migratsiya: referral tizimi (referrer_id / referral_sum / referral_paid)
+        if "referrer_id" not in ucol_names:
+            await self._conn.execute(
+                "ALTER TABLE users ADD COLUMN referrer_id INTEGER DEFAULT NULL"
+            )
+        if "referrer_code" not in ucol_names:
+            await self._conn.execute(
+                "ALTER TABLE users ADD COLUMN referrer_code TEXT DEFAULT ''"
+            )
+        if "referral_sum" not in ucol_names:
+            await self._conn.execute(
+                "ALTER TABLE users ADD COLUMN referral_sum REAL DEFAULT 0"
+            )
+        if "referral_paid" not in ucol_names:
+            await self._conn.execute(
+                "ALTER TABLE users ADD COLUMN referral_paid INTEGER DEFAULT 0"
+            )
+        try:
+            await self._conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_users_referrer ON users(referrer_id)"
+            )
+        except Exception:  # noqa: BLE001
+            pass
         # Tezlik: WAL rejimi (o'quv va yozuv bloklanmasin) + busy_timeout
         try:
             await self._conn.execute("PRAGMA journal_mode=WAL")
@@ -211,6 +238,16 @@ class SettingsRepo:
     async def set_prices(self, prices: dict[int, float]) -> None:
         await self.set("prices", json.dumps(prices))
 
+    # --- Referral: har bir referal uchun bonus (SUM) ---
+    async def get_referral_price(self) -> float:
+        try:
+            return float(await self.get("referral_price", "0"))
+        except ValueError:
+            return 0.0
+
+    async def set_referral_price(self, value: float) -> None:
+        await self.set("referral_price", str(round(float(value), 2)))
+
     async def get_percent(self) -> float:
         try:
             return float(await self.get("percent", "0"))
@@ -256,9 +293,7 @@ class SettingsRepo:
         await self.set("post_price", str(round(float(value), 2)))
 
     # --- POSTGA MINIMAL STARS (alohida) ---
-    # Agar o'rnatilmagan bo'lsa (0), post oqimida umumiy min_stars ishlatiladi.
-
-    async def get_post_min_stars(self) -> int:
+    # Agar o'rnatilmagan bo'lsa (0), post oqimida umumiy min_stars ishlatiladi.(self) -> int:
         try:
             v = int(float(await self.get("post_min_stars", "0")))
         except ValueError:
@@ -294,6 +329,45 @@ class SettingsRepo:
     async def set_channel(self, username: str, chat_id: str) -> None:
         await self.set("channel", username.lstrip("@"))
         await self.set("channel_id", chat_id)
+
+    # --- Majburiy obuna: BIR NECHTA KANAL (JSON ro'yxat) ---
+    # settings["channels"] = [{"username": "...", "chat_id": "..."}, ...]
+    # Eski bitta kanal ham avtomatik tarzda qo'llab-quvvatlanadi.
+
+    async def get_channels(self) -> list[tuple[str, str]]:
+        """Barcha majburiy kanallarni (username, chat_id) ro'yxati sifatida qaytaradi."""
+        raw = await self.get("channels", "")
+        if raw:
+            try:
+                data = json.loads(raw)
+                if isinstance(data, list):
+                    out = []
+                    for c in data:
+                        if isinstance(c, dict) and c.get("username"):
+                            out.append((str(c["username"]).lstrip("@"),
+                                        str(c.get("chat_id") or "")))
+                    if out:
+                        return out
+            except (json.JSONDecodeError, AttributeError, ValueError):
+                pass
+        ch, ch_id = await self.get_channel()
+        return [(ch, ch_id)] if ch else []
+
+    async def set_channels(self, channels: list[tuple[str, str]]) -> None:
+        """Bir nechta majburiy kanallarni saqlaydi (ro'yxat bo'sh bo'lishi mumkin)."""
+        data = [{"username": u.lstrip("@"), "chat_id": (c or "")} for u, c in channels if u]
+        await self.set("channels", json.dumps(data))
+
+    # --- Referal dasturi: referrer bonus (so'm, admin panel orqali) ---
+
+    async def get_referral_bonus(self) -> float:
+        try:
+            return float(await self.get("referral_bonus", "0"))
+        except ValueError:
+            return 0.0
+
+    async def set_referral_bonus(self, value: float) -> None:
+        await self.set("referral_bonus", str(round(float(value), 2)))
 
     # --- To'lovlar kanali (barcha zakazlar joylashtiriladi) ---
 

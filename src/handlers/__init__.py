@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from aiogram import Dispatcher
 
-from src.handlers import admin, buy, extras, gift_flow, post_stars, start, wallet
+from src.handlers import admin, buy, extras, gift_flow, post_stars, referral, start, wallet
 
 
 def register_handlers(dp: Dispatcher) -> None:
@@ -18,4 +18,5 @@ def register_handlers(dp: Dispatcher) -> None:
     dp.include_router(gift_flow.router)
     dp.include_router(post_stars.router)
     dp.include_router(extras.router)
+    dp.include_router(referral.router)
     dp.include_router(admin.router)

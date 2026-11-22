@@ -419,6 +419,41 @@ async def save_post_min_stars(message: Message, app: App, state: FSMContext) -> 
     await state.clear()
 
 
+@router.callback_query(F.data == "admin:set_referral_bonus")
+async def admin_set_referral_bonus(cb: CallbackQuery, app: App, state: FSMContext) -> None:
+    """Referal bonus narxini sozlash (so'm)."""
+    if not await _is_admin(app, cb.from_user.id):
+        return
+    current = await app.settings.get_referral_bonus()
+    await edit_or_send(cb,
+        "👥 <b>Referal bonus</b> narxini yuboring (so'mda).\n"
+        "Bu summa sizning taklif havolangiz orqali kelgan har bir "
+        "yangi foydalanuvchi uchun sizga beriladi.\n\n"
+        f"Hozirgi: <b>{current:,.0f} so'm</b>"
+    )
+    await state.set_state(AdminFlow.wait_ref_bonus)
+
+
+@router.message(StateFilter(AdminFlow.wait_ref_bonus))
+async def save_referral_bonus(message: Message, app: App, state: FSMContext) -> None:
+    if not await _is_admin(app, message.from_user.id):
+        return
+    raw = (message.text or "").strip().replace(" ", "").replace("so'm", "").replace("сум", "")
+    try:
+        val = float(raw)
+    except ValueError:
+        await message.answer("❌ Narx raqam bo'lishi kerak. Masalan: <code>5000</code>")
+        return
+    if val < 0:
+        await message.answer("❌ Narx 0 dan kichik bo'lmasligi kerak.")
+        return
+    await app.settings.set_referral_bonus(val)
+    await message.answer(
+        f"✅ Referal bonus saqlandi: <b>{val:,.0f} so'm</b>"
+    )
+    await state.clear()
+
+
 @router.callback_query(F.data == "admin:set_card")
 async def admin_set_card(cb: CallbackQuery, app: App, state: FSMContext) -> None:
     if not await _is_admin(app, cb.from_user.id):

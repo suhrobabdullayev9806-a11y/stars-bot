@@ -26,6 +26,22 @@ class PaymentsModule:
         self.orders = orders
         self.users = users
         self.api = api
+        # Referal bonus bo'yicha xabar jo'natadigan callback (main.py o'rnatadi).
+        # Imzo: async def notify(referrer_id: int, amount: float, user_id: int)
+        self.referral_notify = None
+
+    async def try_referral_bonus(self, user_id: int) -> None:
+        """Birinchi muvaffaqiyatli xarid uchun referrerga bonus yozadi."""
+        try:
+            reward = await self.users.reward_referrer(user_id)
+        except Exception:  # noqa: BLE001
+            return
+        if reward and self.referral_notify:
+            ref_id, amount = reward
+            try:
+                await self.referral_notify(ref_id, amount, user_id)
+            except Exception:  # noqa: BLE001
+                pass
 
     async def create_intent(
         self,
@@ -66,6 +82,7 @@ class PaymentsModule:
             user_id, stars_amount, f"buy deliver order#{order_id}", order_id
         )
         await self.orders.update_status(order_id, "done", "delivered")
+        await self.try_referral_bonus(user_id)
         return PaymentResult(ok=True, balance=new_bal, order_id=order_id)
 
     async def demand(self, user_id: int, stars_amount: float, price: float, username: str = "") -> PaymentResult:
@@ -112,6 +129,7 @@ class PaymentsModule:
         )
         note = "delivered" + (f"; {api_error}" if api_error else "")
         await self.orders.update_status(order_id, "done", note)
+        await self.try_referral_bonus(user_id)
         return PaymentResult(
             ok=True, order_id=order_id,
             balance=await self.users.balance(user_id),
@@ -167,26 +185,32 @@ class PaymentsModule:
         order = await self.orders.get(order_id) or {}
         if order.get("type") == "topup":
             await self.orders.update_status(order_id, "done", "api topup delivered")
-            return await self.users.add_sum(
+            balance = await self.users.add_sum(
                 user_id, float(order.get("price_amount", 0)),
                 f"topup api deliver order#{order_id}", order_id,
             )
-        await self.orders.update_status(order_id, "done", "api delivered")
-        await self.orders.add_delivered(order_id, amount)
-        return await self.users.add_balance(
-            user_id, amount, f"api deliver order#{order_id}", order_id
-        )
+        else:
+            await self.orders.update_status(order_id, "done", "api delivered")
+            await self.orders.add_delivered(order_id, amount)
+            balance = await self.users.add_balance(
+                user_id, amount, f"api deliver order#{order_id}", order_id
+            )
+        await self.try_referral_bonus(user_id)
+        return balance
 
     async def approve_card_order(self, order_id: int, user_id: int, amount: float) -> float:
         """Admin karta buyurtmasini tasdiqlaganda hisobga yozish (topup -> so'm, buy -> stars)."""
         await self.orders.update_status(order_id, "approved", "admin approved")
         order = await self.orders.get(order_id) or {}
         if order.get("type") == "topup":
-            return await self.users.add_sum(
+            balance = await self.users.add_sum(
                 user_id, float(order.get("price_amount", 0)),
                 f"topup deliver order#{order_id}", order_id,
             )
-        await self.orders.add_delivered(order_id, amount)
-        return await self.users.add_balance(
-            user_id, amount, f"card deliver order#{order_id}", order_id
-        )
+        else:
+            await self.orders.add_delivered(order_id, amount)
+            balance = await self.users.add_balance(
+                user_id, amount, f"card deliver order#{order_id}", order_id
+            )
+        await self.try_referral_bonus(user_id)
+        return balance

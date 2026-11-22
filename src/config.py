@@ -96,7 +96,8 @@ class Settings(BaseModel):
             api_callback_secret=os.getenv("API_CALLBACK_SECRET", ""),
             db_path=os.getenv("DB_PATH", "data/stars.db"),
             webapp_host=os.getenv("WEBAPP_HOST", "0.0.0.0"),
-            webapp_port=int(os.getenv("WEBAPP_PORT", "8080")),
+            # Render kabi platformalar portni PORT orqali beradi
+            webapp_port=int(os.getenv("WEBAPP_PORT") or os.getenv("PORT", "8080")),
             webapp_base_url=os.getenv("WEBAPP_BASE_URL", "").rstrip("/"),
             default_percent=float(os.getenv("DEFAULT_PERCENT", "0")),
         )

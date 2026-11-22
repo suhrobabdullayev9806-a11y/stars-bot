@@ -75,9 +75,10 @@ def main_menu_kb(lang: str) -> InlineKeyboardMarkup:
     kb.button(text=t(lang, "menu_subscribe"), callback_data="menu:post_stars", style=BLUE)
     kb.button(text=t(lang, "menu_pricing"), callback_data="menu:pricing", style=BLUE)
     kb.button(text=t(lang, "menu_stats"), callback_data="menu:stats", style=GREEN)
+    kb.button(text=t(lang, "menu_referral"), callback_data="menu:referral", style=GREEN)
     kb.button(text=t(lang, "menu_help"), callback_data="menu:faq", style=GREEN)
     kb.button(text="🌐", callback_data="lang:change", style=RED)
-    kb.adjust(1, 2, 2, 2, 2)  # to'ldirish to'liq en, qolganlari yonma-yon
+    kb.adjust(1, 2, 2, 2, 2, 1)  # to'ldirish to'liq en, qolganlari yonma-yon
     return kb.as_markup()
 
 
@@ -88,9 +89,16 @@ def back_kb(lang: str, target: str = "menu:main") -> InlineKeyboardMarkup:
     return kb.as_markup()
 
 
-def check_subscribe_kb(lang: str) -> InlineKeyboardMarkup:
-    """Majburiy obunani tekshirish."""
+def check_subscribe_kb(lang: str, channels: list[tuple[str, str]] | None = None) -> InlineKeyboardMarkup:
+    """Majburiy obunani tekshirish: kanal(lar)ga o'tish + tekshirish."""
     kb = InlineKeyboardBuilder()
+    for username, _ch in channels or []:
+        if not username:
+            continue
+        kb.row(InlineKeyboardButton(
+            text="📢 " + (f"@{username}" if lang == "uz" else f"Join @{username}"),
+            url=f"https://t.me/{username.lstrip('@')}",
+        ))
     kb.row(btn(t(lang, "check_subscribe"), "check:sub", GREEN))
     return kb.as_markup()
 
@@ -276,9 +284,11 @@ def admin_settings_kb(lang: str) -> InlineKeyboardMarkup:
     kb.row(btn("🎁 " + _l("Gift 1⭐ narxi", "Gift 1⭐ price"), "admin:set_gift_price", GREEN))
     kb.row(btn("📝 " + _l("Post 1⭐ narxi", "Post 1⭐ price"), "admin:set_post_price", GREEN))
     kb.row(btn("📝 " + _l("Post minimal ⭐", "Post minimum ⭐"), "admin:set_post_min_stars", GREEN))
+    kb.row(btn("👥 " + _l("Referal bonus (so'm)", "Referral bonus (UZS)"), "admin:set_referral_bonus", GREEN))
     kb.row(btn("💵 " + _l("Narxlar", "Prices"), "admin:set_prices", BLUE))
     kb.row(btn("💳 " + _l("Karta", "Card"), "admin:set_card", BLUE))
     kb.row(btn("📢 " + _l("Majburiy kanal", "Required channel"), "admin:set_channel", BLUE))
+    kb.row(btn("👥 " + _l("Bir nechta kanal qo'shish", "Add multiple channels"), "admin:set_channels", BLUE))
     kb.row(btn("🛒 " + _l("To'lovlar kanali", "Payments channel"), "admin:set_pay_channel", BLUE))
     kb.row(btn("🗑 " + _l("Kanalni o'chirish", "Remove channel"), "admin:clear_pay_channel", RED))
     kb.row(btn("🤖 " + _l("Stars API o'rnatish", "Set Stars API"), "admin:set_api", GREEN))
@@ -316,4 +326,11 @@ def admin_accounts_kb(lang: str) -> InlineKeyboardMarkup:
     kb.row(btn("📄 " + _l("Ro'yxat", "List"), "admin:acct_list", BLUE))
     kb.row(btn("❌ " + _l("Akkaunt o'chirish", "Remove account"), "admin:acct_del", RED))
     kb.row(btn(t(lang, "back"), "admin:main", RED))
+    return kb.as_markup()
+
+
+def referral_kb(lang: str) -> InlineKeyboardMarkup:
+    """Referal bo'limi: orqaga."""
+    kb = InlineKeyboardBuilder()
+    kb.row(btn(t(lang, "back"), "menu:main", RED))
     return kb.as_markup()

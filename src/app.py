@@ -28,6 +28,7 @@ class App:
         # Repository / modullar
         self.settings = SettingsRepo(self.db)
         self.users = UsersModule(self.db)
+        self.users.settings = self.settings  # referal bonusni o'qish uchun
         self.orders = OrdersModule(self.db)
         self.accounts = AccountsModule(self.db, self.cfg.bot_token)
         self.api = StarsApiClient(cfg, self.settings)

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 
 from aiogram import Bot
 from aiogram.types import CallbackQuery, Message
@@ -16,18 +17,87 @@ from src.i18n import t
 
 _log = logging.getLogger("stars.notify")
 
+# Obuna tekshiruvi keshi: (ts, subscribed). Telegram rate-limitidan
+# qochish uchun natija qisqa muddat (SUB_TTL) saqlanadi.
+SUB_TTL = 90.0
+_sub_cache: dict[int, tuple[float, bool]] = {}
 
-async def is_subscribed(bot: Bot, user_id: int, channel: str, channel_id: str | None) -> bool:
-    """Foydalanuvchi majburiy kanalga obuna bo'lganini tekshiradi."""
-    if not channel:
+
+def _cached_sub(user_id: int) -> bool | None:
+    entry = _sub_cache.get(user_id)
+    if not entry:
+        return None
+    ts, ok = entry
+    if time.monotonic() - ts > SUB_TTL:
+        return None
+    return ok
+
+
+async def _check_channel(bot: Bot, user_id: int, chat_id: str) -> bool:
+    """Bitta kanalga obunani tekshiradi. Xato bo'lsa bloklamaydi (True)."""
+    if not chat_id:
         return True
-    chat_id = channel_id if channel_id else f"@{channel}"
     try:
         member = await bot.get_chat_member(chat_id, user_id)
     except Exception:  # noqa: BLE001
         # Kanal topilmasa yoki botga ruxsat bo'lmasa - bloklamaymiz
         return True
     return member.status in ("member", "administrator", "creator")
+
+
+async def is_subscribed(bot: Bot, user_id: int, channel: str, channel_id: str | None) -> bool:
+    """Foydalanuvchi majburiy kanalga obuna bo'lganini tekshiradi (bitta kanal)."""
+    if not channel:
+        return True
+    chat_id = channel_id if channel_id else f"@{channel}"
+    return await _check_channel(bot, user_id, chat_id)
+
+
+async def is_subscribed_all(
+    bot: Bot,
+    user_id: int,
+    channels: list[tuple[str, str]],
+    force: bool = False,
+) -> bool:
+    """Foydalanuvchi HAMMA majburiy kanallarga obuna ekanini tekshiradi.
+
+    - channels: [(username, chat_id), ...]
+    - force=True bo'lsa kesh o'qilmaydi (masalan '✅ Tekshirish' tugmasi).
+    - Natija SUB_TTL (90s) keshlanadi — flooddan himoya.
+    """
+    if not channels:
+        return True
+    if not force:
+        cached = _cached_sub(user_id)
+        if cached is not None:
+            return cached
+    tags = [
+        (ch_id or f"@{username}")
+        for username, ch_id in channels
+        if username
+    ]
+    if not tags:
+        return True
+    results = await asyncio.gather(
+        *(_check_channel(bot, user_id, tag) for tag in tags)
+    )
+    ok = all(results)
+    _sub_cache[user_id] = (time.monotonic(), ok)
+    return ok
+
+
+async def send_subscribe_prompt(bot: Bot, app, user_id: int, lang: str,
+                               channels: list[tuple[str, str]]) -> None:
+    """Obuna ko'rsatmasi: kanal(lar) + 'Obuna bo'lish' + '✅ Tekshirish' tugmalari."""
+    from src.keyboards import check_subscribe_kb
+    text = t(lang, "start_not_subscribed")
+    joined = "\n".join(f"  📢 @{username}" for username, _ch in channels if username) or "—"
+    text = text.format(channels=joined)
+    kb = check_subscribe_kb(lang, channels)
+    try:
+        await bot.send_message(user_id, text, reply_markup=kb, disable_web_page_preview=True)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def user_ref(user: dict) -> str:

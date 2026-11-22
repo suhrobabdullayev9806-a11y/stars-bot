@@ -33,8 +33,8 @@ async def test_accounts_module(app):
     assert len(await app.accounts.list_all()) == 1
 
 
-async def test_gift_insufficient(app):
+async def test_gift_nonexistent(app):
     await app.users.get_or_create(9)
     result = await app.gifts.purchase_gift(9, 100, "+998901234567")
     assert result.ok is False
-    assert result.error == "insufficient"
+    assert result.error == "no_gift"
