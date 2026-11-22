@@ -1,0 +1,34 @@
+name: keepalive
+
+# Render free web service 15 daqiqa harakatsizlikdan keyin uxlaydi.
+# Har 5 daqiqada ping yuborib botni doim uyg'oq tutamiz.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+permissions: {}
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping Render app
+        run: |
+          URL="https://stars-bot-4kcp.onrender.com/"
+          for i in 1 2 3 4; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 "$URL" || true)
+            echo "attempt $i -> HTTP $code"
+            if [ "$code" = "200" ]; then
+              exit 0
+            fi
+            sleep 25
+          done
+          echo "ping failed, exiting soft"
+          exit 0
